@@ -1,0 +1,108 @@
+services:
+  postgres:
+    image: postgres:latest
+    container_name: postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+      - ./init:/docker-entrypoint-initdb.d
+    networks:
+      - pg_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - pg_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres2:
+    image: postgres:latest
+    container_name: postgres2
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES2_USER}
+      POSTGRES_PASSWORD: ${POSTGRES2_PASSWORD}
+      POSTGRES_DB: ${POSTGRES2_DB}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres2_data:/var/lib/postgresql
+    networks:
+      - pg_network2
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES2_USER} -d ${POSTGRES2_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pgadmin2:
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin2
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN2_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN2_DEFAULT_PASSWORD}
+    ports:
+      - "5051:80"
+    volumes:
+      - pgadmin2_data:/var/lib/pgadmin
+    networks:
+      - pg_network2
+    depends_on:
+      postgres2:
+        condition: service_healthy
+
+  goldengate:
+    image: container-registry.oracle.com/goldengate/goldengate-postgresql-free:latest
+    container_name: goldengate
+    restart: unless-stopped
+    environment:
+      OGG_ADMIN: ${OGG_ADMIN}
+      OGG_ADMIN_PWD: ${OGG_ADMIN_PWD}
+      OGG_DEPLOYMENT: ${OGG_DEPLOYMENT}
+    ports:
+      - "8080:8080"
+      - "8443:8443"
+    volumes:
+      - goldengate_data:/u02
+      - goldengate_tmp:/u03
+    networks:
+      - gg_network
+
+networks:
+  pg_network:
+    driver: bridge
+  pg_network2:
+    driver: bridge
+  gg_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  pgadmin_data:
+  postgres2_data:
+  pgadmin2_data:
+  goldengate_data:
+  goldengate_tmp:
